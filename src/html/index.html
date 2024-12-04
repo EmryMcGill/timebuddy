@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="/js/index.js"></script> 
+    <script src="/js/pocketbase.umd.js"></script>
+    <link rel="shortcut icon" href="#">
+    <script>
+        // Initialize the PocketBase instance
+        const pb = new PocketBase('https://timebuddy.api.emrymcgill.com');
+
+        // get auth data
+        authData = pb.authStore.model
+
+        // function to check if user is logged in
+        const checkUser = async () => {
+            // check if user is logged in
+            if (!authData) {
+                // no saved login in local storage, redirect to login page
+                console.log("no saved login")
+                window.location.href = '/html/login.html';
+            }
+
+            // check if user exists
+            try {
+                const records = await pb.collection('users').getFullList({filter: `id = "${authData.id}"`});
+                if (records.length == 0) {
+                    // user doesnt exist
+                    console.log("user not found")
+                    window.location.href = '/html/login.html';
+                }
+            } catch (error) {
+                // user not logged in redirect to login page
+                console.log("error logging in")
+                window.location.href = '/html/login.html';
+            }
+        }
+        checkUser()
+
+        // function to initialize data from pb
+        const initSettings = async () => {
+            try {
+                const record = await pb.collection('users').getOne(authData.id);
+                document.getElementById('break-length').value = record.break_length;
+
+                // get users projects
+                const projects = await pb.collection('projects').getFullList({
+                    sort: '-priority',
+                })
+
+                // render projects
+                let list = document.getElementById("project-list");
+                list.innerHTML = "";
+                for (i = 0; i < projects.length; ++i) {
+                    // atempt to get todays time
+                    // check if there is a record for todays time
+                    let ts;
+                    let tm;
+                    let th;
+                    try {
+                        let todaysTime = await pb.collection('daily_time').getFirstListItem(`created >= "${new Date().toISOString().slice(0, 10)}" && project_id = "${projects[i].id}"`);
+                        ts = todaysTime.time;
+                        tm = Math.floor(ts / 60);
+                        th = Math.floor(tm / 60);
+                        tm = tm % 60;
+                        ts = ts % 60;
+                    } catch (error) {
+                        // create a new record for todays time
+                        console.log(new Date().toISOString().slice(0, 10))
+                        const record = await pb.collection('daily_time').create({
+                            project_id: projects[i].id,
+                            time: 0,
+                            user_id: authData.id,
+                        });
+                        ts = 0;
+                        tm = 0;
+                        th = 0;
+                    }
+                    
+                    // create list item
+                    let li = document.createElement('li');
+                    li.innerHTML = `<p>${projects[i].title}</p>
+                                    <p id="${projects[i].id}-time" class="todays-time">${th > 0 ? th.toString().padStart(2, "0")+':' : ""}${tm.toString().padStart(2, "0")+':'}${ts.toString().padStart(2, "0")}</p>
+                                    <button id="${projects[i].id}-btn" class="start-btn" onclick="triggerTimer('${projects[i].id}')">Start</button>
+                                    <button id="${projects[i].id}-delete" class="delete-btn" onclick="deleteProject('${projects[i].id}')">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor">
+                                            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
+                                        </svg>
+                                    </button>
+                                    <button id="${projects[i].id}-prior" class="prior-up" onclick="priorUp('${projects[i].id}')">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-caret-up" viewBox="0 0 16 16">
+                                            <path d="M3.204 11h9.592L8 5.519zm-.753-.659 4.796-5.48a1 1 0 0 1 1.506 0l4.796 5.48c.566.647.106 1.659-.753 1.659H3.204a1 1 0 0 1-.753-1.659"/>
+                                        </svg>
+                                    </button>
+                                    <button id="${projects[i].id}-prior" class="prior-down" onclick="priorDown('${projects[i].id}')">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-caret-down" viewBox="0 0 16 16">
+                                            <path d="M3.204 5h9.592L8 10.481zm-.753.659 4.796 5.48a1 1 0 0 0 1.506 0l4.796-5.48c.566-.647.106-1.659-.753-1.659H3.204a1 1 0 0 0-.753 1.659"/>
+                                        </svg>
+                                    </button>
+                                    `
+                    li.id = projects[i].id
+                    list.appendChild(li);
+                }
+            } catch (error) {
+                // error occured
+                console.log(error)
+            }
+        }
+        initSettings()
+
+        // function to update settings
+        const updateSettings = async () => {
+            try {
+                const record = await pb.collection('users').update(authData.id, {
+                    break_length: document.getElementById('break-length').value
+                });
+                // close settings modal
+                toggleOffSettingsModal()
+            } catch (error) {
+                // error occured
+                console.log(error)
+            }
+        }
+
+        // function to add new project
+        const createProject = async (e) => {
+            e.preventDefault();
+            try {
+                // get all the projects to get the # of projects
+                const projects = await pb.collection('projects').getFullList({})
+                const numProjects = projects.length;
+                console.log(numProjects)
+                const record = await pb.collection('projects').create({
+                    title: document.getElementById('new-project').value,
+                    user_id: authData.id,
+                    priority: numProjects
+                });
+                // clear the input
+                document.getElementById('new-project').value = "";
+                // reload the data
+                initSettings()
+                // close new project modal
+                toggleOffNewProjectModal()
+            } catch (error) {
+                // error occured
+                console.log(error)
+            }
+        }
+
+        // function to trigger the timer
+        let timerInterval;
+        let hour = 0;
+        let minute = 0;
+        let second = 0;
+        const triggerTimer = async (projectId) => {
+            // get list of projects
+            const projects = await pb.collection('projects').getFullList({
+                    sort: '-created',
+                    filter: `user_id = "${authData.id}"`
+            })
+
+            // loop through the projects
+            for (i = 0; i < projects.length; ++i) {
+                // check if the button text is stop
+                if (document.getElementById(`${projects[i].id}-btn`).innerHTML == "Stop") {
+                    // check if its the same project that triggered the button
+                    if (projects[i].id == projectId) {
+                        // stop the timer
+                        stopTimer(projects[i].id)
+                        // return
+                        return;
+                    }
+                    else {
+                        // stop the timer
+                        await stopTimer(projects[i].id)
+                        // break loop
+                        break;
+                    }
+                }
+            }
+            // start the timer
+            startTimer(projectId)
+            // stop break
+            stopBreak()
+        }
+    
+        // function to stop timer and save the time session
+        const stopTimer = async (projectId) => {
+            // stop the timer
+            clearInterval(timerInterval);
+            // stop break
+            stopBreak()
+
+            // clear current project
+            document.getElementById("hidden-input").value = "";
+
+            // check if there is a record for todays time
+            try {
+                const record = await pb.collection('daily_time').getFirstListItem(`created >= "${new Date().toISOString().slice(0, 10)}" && project_id = "${projectId}"`);
+                console.log(record)
+                // update todays time
+                await pb.collection('daily_time').update(record.id, {
+                    time: record.time + hour * 60 * 60 + minute * 60 + second
+                });
+            } catch (error) {
+                console.log("error")
+                // create a new record for todays time
+                const record = await pb.collection('daily_time').create({
+                    project_id: projectId,
+                    time: hour * 60 * 60 + minute * 60 + second,
+                    user_id: authData.id
+                });
+            }
+
+            // init the timer to 0
+            hour = 0;
+            minute = 0;
+            second = 0;
+
+            // update page data
+            await initSettings()
+
+            // reset the timer
+            let timer = document.getElementById("timer");
+            timer.innerHTML = "00:00";
+            // change button text
+            document.getElementById(`${projectId}-btn`).innerHTML = "Start";
+            // return
+            return;
+        }
+
+        // function to start timer
+        const startTimer = (projectId) => {
+            // change button text
+            document.getElementById(`${projectId}-btn`).innerHTML = "Stop";
+            // change button class
+            document.getElementById(`${projectId}-btn`).classList.add("stop-btn");
+            // change hidden input value to current project id
+            document.getElementById("hidden-input").value = projectId;
+            // change background of current project
+            document.getElementById(projectId).style.backgroundColor = "#EEFFE0";
+
+            // find the timer element
+            let timer = document.getElementById("timer");
+
+            timerInterval = setInterval(() => {
+                // increment the seconds
+                second++;
+                // increment the minutes
+                if (second == 60) {
+                    minute++;
+                    second = 0;
+                }
+                // increment the hours
+                if (minute == 60) {
+                    hour++;
+                    minute = 0;
+                }
+
+                // update the timer
+                timer.innerHTML = `${hour > 0 ? hour.toString().padStart(2, "0")+":" : ""}${minute.toString().padStart(2, "0")+":"}${second.toString().padStart(2, "0")}`;
+            
+                // update pojects day time
+            }, 1000);
+        }
+    
+        // function to start a break
+        let breakInterval;
+        let breakHour;
+        let breakMinute;
+        let breakSecond;
+        const toggleBreak = async () => {
+            // check if break is on or off
+            let breakBtn = document.getElementById("break-btn");
+            let timer = document.getElementById("timer");
+            if (breakBtn.innerText == "Break") {
+                if (document.getElementById("hidden-input").value == "") {
+                    console.log("no project selected")
+                    return
+                }
+                // stop the timer
+                clearInterval(timerInterval);
+
+                // change button text
+                breakBtn.innerText = "Resume Work";
+
+                // change button class
+                breakBtn.classList.add("resume-btn");
+
+                // change background of current project
+                document.getElementById(document.getElementById("hidden-input").value).style.backgroundColor = "#E0FDFF";
+
+                // init the break variables
+                let breakTime = document.getElementById("break-length").value;
+                breakHour = Math.floor(breakTime / 60);
+                breakMinute = breakTime % 60;
+                breakSecond = 0;
+
+                // start the break timer
+                breakInterval = setInterval(() => {
+                    // update the timer
+                    timer.innerHTML = `${hour > 0 ? breakHour.toString().padStart(2, "0")+":" : ""}${breakMinute.toString().padStart(2, "0")+":"}${breakSecond.toString().padStart(2, "0")}`;
+                    
+                    // increment the minutes
+                    if (breakSecond == 0) {
+                        breakMinute--;
+                        breakSecond = 59;
+                    }
+                    // increment the hours
+                    if (breakMinute == 0) {
+                        breakHour--;
+                        breakMinute = 59;
+                    }
+                    // increment the seconds
+                    breakSecond--;
+                }, 1000);
+            }
+            else {
+                // stop break timer
+                clearInterval(breakInterval);
+
+                // reset the timer
+                timer.innerText = "00:00";
+
+                // change button text
+                breakBtn.innerText = "Break";
+
+                // check if there is a current project
+                if (document.getElementById("hidden-input").value == "") {
+                    // return
+                    return;
+                }
+                // start timer
+                startTimer(document.getElementById("hidden-input").value);
+            }
+        }
+    
+        const stopBreak = async () => {
+            clearInterval(breakInterval);
+            document.getElementById("break-btn").innerText = "Break";
+        }
+    
+        // function to display delete btns
+        const toggleDeleteBtns = () => {
+            let deleteBtns = document.getElementsByClassName("delete-btn");
+            let priorUp = document.getElementsByClassName("prior-up");
+            let priorDown = document.getElementsByClassName("prior-down");
+            for (let i = 0; i < deleteBtns.length; i++) {
+                if (deleteBtns[i].style.display == "block") {
+                    deleteBtns[i].style.display = "none";
+                    priorUp[i].style.display = "none";
+                    priorDown[i].style.display = "none";
+                }
+                else {
+                    deleteBtns[i].style.display = "block";
+                    priorUp[i].style.display = "block";
+                    priorDown[i].style.display = "block";
+                }
+            }
+        }
+    
+        // function to delete project
+        const deleteProject = async (projectId) => {
+            // delete project from database
+            await pb.collection('projects').delete(projectId);
+
+            // delete btn from dom
+            document.getElementById(projectId).remove();
+        }
+
+        const priorUp = async (projectId) => {
+            // get all projects
+            let projects = await pb.collection('projects').getFullList({
+                sort: '-priority',
+            });
+
+            // loop through projects
+            for (let i = 0; i < projects.length; i++) {
+                // check if the project is the target
+                if (projects[i].id == projectId) {
+                    // check if its the first project in list
+                    if (i == 0) {
+                        // do nothing
+                        return;
+                    }
+                    // inc priority of target
+                    await pb.collection('projects').update(projects[i].id, {
+                        priority: projects[i].priority + 1
+                    })
+
+                    // dec priority of next project
+                    await pb.collection('projects').update(projects[i-1].id, {
+                        priority: projects[i-1].priority - 1
+                    })
+                }
+            }
+
+            // render projects
+            initSettings();
+        }
+
+        const priorDown = async (projectId) => {
+            // get all projects
+            let projects = await pb.collection('projects').getFullList({
+                sort: '-priority',
+            });
+
+            // loop through projects
+            for (let i = 0; i < projects.length; i++) {
+                // check if the project is the target
+                if (projects[i].id == projectId) {
+                    // check if its the last project in list
+                    if (i == projects.length - 1) {
+                        // do nothing
+                        return;
+                    }
+                    // inc priority of target
+                    await pb.collection('projects').update(projects[i].id, {
+                        priority: projects[i].priority - 1
+                    })
+
+                    // dec priority of previous project
+                    await pb.collection('projects').update(projects[i+1].id, {
+                        priority: projects[i+1].priority + 1
+                    })
+                }
+            }
+
+            // render projects
+            initSettings();
+        }
+
+        const logout = async () => {
+            await pb.authStore.clear();
+            window.location.href = "/html/login.html";
+        }
+
+    </script>
+    <title>TimeBuddy</title>
+</head>
+<body>
+    <script>0</script>
+    <nav>
+        <div class="left-nav">
+            <h1 class="title">TimeBuddy</h1>
+
+            <a href="/html/index.html" class="nav-link" style="background-color:#282828">
+                <svg class="nav-link-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+                    <path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71z"/>
+                    <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0"/>
+                </svg>
+                <p class="nav-link-text">Time</p>
+            </a>
+    
+            <a href="/html/report.html" class="nav-link">
+                <svg class="nav-link-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M3 12H5V21H3V12ZM19 8H21V21H19V8ZM11 2H13V21H11V2Z"></path></svg>
+                <p class="nav-link-text">Report</p>
+            </a>
+        </div>
+
+        <div class="right-nav">
+            <button class="logout-btn" onclick="logout()">Logout</button>
+            <button class="settings-btn" onclick="toggleOnSettingsModal()">
+                <?xml version="1.0" encoding="UTF-8"?>
+                <svg class="settings-icon" stroke-width="1.5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" color="white"><path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M19.6224 10.3954L18.5247 7.7448L20 6L18 4L16.2647 5.48295L13.5578 4.36974L12.9353 2H10.981L10.3491 4.40113L7.70441 5.51596L6 4L4 6L5.45337 7.78885L4.3725 10.4463L2 11V13L4.40111 13.6555L5.51575 16.2997L4 18L6 20L7.79116 18.5403L10.397 19.6123L11 22H13L13.6045 19.6132L16.2551 18.5155C16.6969 18.8313 18 20 18 20L20 18L18.5159 16.2494L19.6139 13.598L21.9999 12.9772L22 11L19.6224 10.3954Z" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+            </button>
+        </div>
+    </nav>
+
+    <div class="content-container">
+        <!-- Modal Container-->
+        <div class="modal-container">
+
+            <!-- Settings Modal -->
+            <div class="modal-content-container settings-container">
+                <div class="modal-content-header">
+                    <h1>Settings</h1>
+                    <button class="close-btn" onclick="toggleOffSettingsModal()">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+                            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="form">
+                    <div>
+                        <label for="break-length">Break Length</label>
+                        <input type="number" id="break-length" name="break-length">
+                    </div>
+                    <button onclick="updateSettings()">Apply</button>
+                </div>
+            </div>
+
+            <!-- New Project Modal -->
+            <div class="new-project-container modal-content-container">
+                <div class="modal-content-header">
+                    <h1>Add Project</h1>
+                    <button class="close-btn" onclick="toggleOffNewProjectModal()">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+                            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <form class="form" onsubmit="createProject(event)">
+                    <div>
+                        <label for="new-project">New Project Name</label>
+                        <input 
+                            type="text" 
+                            id="new-project" 
+                            name="new-project" 
+                            placeholder="Project Name"
+                            style="width: auto"
+                            required
+                        >
+                    </div>
+                    <button>Add</button>
+                </form>
+            </div>
+        </div>
+
+        <p class="timer" id="timer">00:00</p>
+
+        <button id="break-btn" class="break-btn" onclick="toggleBreak()">
+            Break
+        </button>
+        <input type="hidden" id="hidden-input">
+
+        <div class="project-list-container">
+            <div class="label-container">
+                <p class="label-text">Title</p>
+                <p>Todays Total</p>
+            </div>
+
+            <ul id="project-list">
+            </ul>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;">
+                <button class="new-project-btn" onclick="toggleOnNewProjectModal()">
+                    + New Project
+                </button>
+
+                <button class="edit-btn" onclick="toggleDeleteBtns()">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-pencil-square" viewBox="0 0 16 16">
+                        <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
+                        <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5z"/>
+                    </svg>
+                </button>
+            </div>
+            
+        </div>
+    </div>
+
+    
+
+</body>
+</html>

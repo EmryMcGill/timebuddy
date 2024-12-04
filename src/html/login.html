@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/auth.css">
+
+  <script src="../js/pocketbase.umd.js"></script>
+  <script>
+    // Initialize the PocketBase instance
+    const pb = new PocketBase('https://timebuddy.api.emrymcgill.com');
+
+    // function to login a user
+    async function loginUser() {
+      console.log("login user")
+
+      // atempt to login user
+      try {
+        const authData = await pb.collection('users').authWithPassword(
+          document.getElementById('email').value,
+          document.getElementById('password').value,
+        );
+
+        console.log(authData)
+
+        // redirect to home page
+        window.location.href = './index.html';
+      } catch (error) {
+        // display the errors
+        document.getElementById('err').innerHTML = "Incorrect email or password"
+      }
+
+    }
+  </script>
+
+  <title>TimeBuddy</title>
+</head>
+<body>
+  <h1 class="title">TimeBuddy</h1>
+
+  <h2 class="sign-up-text">Login</h2>
+  <div class="container">
+    <div class="form-container">
+      <div class="form">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" placeholder="example@email.com">
+        <label for="password" style="margin-top: 1rem;">Password</label>
+        <input type="password" id="password" name="password" placeholder="password">
+        <p class="err-msg" id="err"></p>
+        <button onclick="loginUser()">Login</button>
+      </div>
+    </div>
+  </div>
+  <p>Don't have an account? <a href="./signup.html">Sign up here</a></p>
+</body>
+</html>
