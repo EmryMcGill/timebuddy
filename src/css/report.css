@@ -1,0 +1,137 @@
+* {
+    margin: 0;
+    font-family: 'Roboto', sans-serif;
+}
+
+body {
+    height: 100vh;
+}
+
+nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 4rem;
+    background-color: #1a1a1a;
+    padding-right: 1rem;
+}
+
+.left-nav {
+    display: flex;
+    align-items: center;
+    height: 100%;
+}
+
+.title {
+    display: none;
+    color: white;
+    font-weight: 300;
+    margin-right: 2rem;
+    margin-left: 1rem;
+}
+
+.nav-link {
+    display: flex;
+    color: white;
+    text-decoration: none;
+    font-weight: 300;
+    font-size: 1.3rem;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+
+.nav-link-icon {
+    width: 2.5rem;
+    fill: white;
+    display: block;
+}
+
+.nav-link-text {
+    display: none;
+}
+
+canvas {
+    max-width: 90%;
+    width: 90%;
+}
+
+.container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+
+.btn-container {
+    margin-top: 5rem;
+    margin-bottom: 1rem;
+    display: flex;
+    gap:0;
+}
+
+button {
+    background-color: white;
+    color: #1a1a1a;
+    border: 2px solid #1a1a1a;
+    border-radius: 5px;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-top: .5rem;
+    padding-bottom: .5rem;
+    font-size: 1.3rem;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #1a1a1a;
+    color: white;
+}
+
+.btn-left {
+    margin: 0;
+    border-radius: 5px 0 0 5px;
+    border-right: none;
+    border-color: #1a1a1a;
+}
+
+.btn-middle {
+    margin: 0;
+    border-radius: 0;
+    border-color: #1a1a1a;
+}
+
+.btn-right {
+    margin: 0;
+    border-radius: 0 5px 5px 0;
+    border-left: none;
+    border-color: #1a1a1a;
+}
+
+@media (min-width: 400px) {
+    .title {
+        display: block;
+    }
+}
+
+@media (min-width: 768px) {
+    nav {
+        height: 3rem;
+    }
+
+    .nav-link-icon {
+        display: none;
+    }
+
+    .nav-link-text {
+        display: block;
+    }
+}
+
+@media (min-width: 850px) {
+    canvas {
+        max-width: 850px;
+    }
+}

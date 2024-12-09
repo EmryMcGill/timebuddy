@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../css/report.css">
+    <title>TimeBuddy</title>
+    <script src="/js/pocketbase.umd.js"></script>
+    <script src="/js/pocketbase.js"></script>
+    <link rel="shortcut icon" href="#">
+    <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js">
+    </script>
+
+<script>
+    // global variables
+    let state = 'today'
+    let projects = []
+    let timeLogs = []
+    let chart;
+
+
+    const loadPageData = async () => {
+        // get the projects
+        projects = await getProjects()
+
+        // init time logs
+        timeLogs = await getTimeLogs();
+    }
+
+    const changeState = (e) => {
+        // change the state
+        state = e.target.value
+
+        // change btn style
+        let btns = new Array(3)
+
+        btns[0] = document.getElementById("today")
+        btns[1] = document.getElementById("week")
+        btns[2] = document.getElementById("month")
+
+        btns.forEach(btn => {
+            if (btn.value == state) {
+                btn.style.backgroundColor = "#1a1a1a"
+                btn.style.color = "white"
+            }
+            else {
+                btn.style.backgroundColor = "white"
+                btn.style.color = "#1a1a1a"
+            }
+        });
+        
+        // refresh the chart
+        chart.destroy();
+        createChart(state);
+    }
+    
+    // function to filter the logs for the specified state
+    const filterLogs = (state) => {
+        if (state == 'today') {
+            return timeLogs.filter(log => new Date(log.created).toLocaleString().slice(0, 10) == new Date().toLocaleString().slice(0, 10))
+        }
+
+        if (state == 'week') {
+            const start_date = new Date()
+            start_date.setDate(start_date.getDate() - 7);
+            return timeLogs.filter(log => new Date(log.created).toLocaleString().slice(0, 10) >= start_date.toLocaleString().slice(0, 10))
+        }
+
+        if (state == 'month') {
+            const start_date = new Date()
+            start_date.setDate(start_date.getDate() - 30);
+            return timeLogs.filter(log => new Date(log.created).toLocaleString().slice(0, 10) >= start_date.toLocaleString().slice(0, 10))
+        }
+
+        return []
+    }
+    
+    const createChart = async (state) => {
+        // filter logs
+        timeLogs_filtered = filterLogs(state)
+        
+        var xValues = projects.map(project => project.title);
+
+        var yValues = Array(xValues.length).fill(0);
+        var barColors = Array(xValues.length).fill('#282828');
+
+        // loop through the projects
+        for (var i = 0; i < projects.length; ++i) {
+            // loop through the daily times to find the ones for this project
+            for (var j = 0; j < timeLogs_filtered.length; ++j) {
+                if (projects[i].id == timeLogs_filtered[j].project_id) {
+                    // add the time to the yValues
+                    yValues[i] += parseFloat(timeLogs_filtered[j].time / 60)
+                }
+            }
+        }
+
+        chart = new Chart("myChart", {
+            type: "bar",
+            data: {
+                labels: xValues,
+                datasets: [{
+                backgroundColor: barColors,
+                data: yValues
+                }]
+            },
+            options: {
+                legend: {display: false},
+                scales: {
+                    yAxes: [{
+                        ticks: {
+                        beginAtZero: true
+                        },
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'Minutes'
+                        }
+                    }],
+                    xAxes: [{
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'Projects'
+                        }
+                    }]
+                },
+                hover: { mode: null },
+                tooltips: { enabled: false },
+            }
+        });
+    }
+    loadPageData().then(() => createChart(state));
+    
+</script>
+
+</head>
+<body>
+    <nav>
+        <div class="left-nav">
+            <h1 class="title">TimeBuddy</h1>
+
+            <a href="./index.html" class="nav-link">
+                <svg class="nav-link-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+                    <path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71z"/>
+                    <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0"/>
+                </svg>
+                <p class="nav-link-text">Time</p>
+            </a>
+    
+            <a href="./report.html" class="nav-link" style="background-color:#282828">
+                <svg class="nav-link-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M3 12H5V21H3V12ZM19 8H21V21H19V8ZM11 2H13V21H11V2Z"></path></svg>
+                <p class="nav-link-text">Report</p>
+            </a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="btn-container">
+            <button style="background-color: #1a1a1a; color: white;" id="today" value="today" onclick="changeState(event)" class="btn-left">Today</button>
+            <button id="week" value="week" onclick="changeState(event)" class="btn-middle">Past 7 days</button>
+            <button id="month" value="month" onclick="changeState(event)" class="btn-right">Past 30 days</button>
+        </div>
+        <canvas id="myChart"></canvas>
+    </div>
+</body>
+</html>

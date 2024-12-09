@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="../css/auth.css">
+  <script src="../js/pocketbase.umd.js"></script>
+  <script src="../js/pocketbase.js"></script>
+  <script>
+    // handle submit
+    async function handleSubmit(event) {
+      // prevent page reload
+      event.preventDefault();
+
+      // get data from form
+      const data = {
+        "email": document.getElementById('email').value,
+        "password": document.getElementById('password').value,
+        "passwordConfirm": document.getElementById('password-confirm').value,
+        "break_length": 5,
+      }  
+
+      // atempt to create user
+      await createUser(data);
+    }
+  </script>
+
+  <title>TimeBuddy</title>
+</head>
+<body>
+  <h1 class="title">TimeBuddy</h1>
+
+  <h2 class="sign-up-text">Sign up</h2>
+  <div class="container">
+    <div class="form-container">
+      <form onsubmit="handleSubmit(event)" class="form">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" placeholder="example@email.com">
+        <p class="err-msg" id="email-err"></p>
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" placeholder="password">
+        <p class="err-msg" id="password-err"></p>
+        <label for="password-confirm">Confirm Password</label>
+        <input type="password" id="password-confirm" name="password-confirm" placeholder="password">
+        <p class="err-msg" id="password-confirm-err"></p>
+        <button>Sign up</button>
+      </form>
+    </div>
+  </div>
+  <p>Already have an account? <a href="./login.html">Login here</a></p>
+</body>
+</html>

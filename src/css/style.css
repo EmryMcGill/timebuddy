@@ -1,0 +1,404 @@
+* {
+    margin: 0;
+    font-family: 'Roboto', sans-serif;
+}
+
+button {
+    background-color: white;
+    color: #1a1a1a;
+    border: 2px solid #1a1a1a;
+    border-radius: 5px;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-top: .5rem;
+    padding-bottom: .5rem;
+    font-size: 1.3rem;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #1a1a1a;
+    color: white;
+}
+
+nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 4rem;
+    background-color: #1a1a1a;
+    padding-right: 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.left-nav {
+    display: flex;
+    align-items: center;
+    height: 100%;
+}
+
+.right-nav {
+    display: flex;
+    align-items: center;
+    height: 100%;
+}
+
+.logout-btn {
+    display: none;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: white;
+    margin-right: 1rem;
+}
+
+.title {
+    display: none;
+    color: white;
+    font-weight: 300;
+    margin-right: 2rem;
+    margin-left: 1rem;
+}
+
+.nav-link {
+    display: flex;
+    color: white;
+    text-decoration: none;
+    font-weight: 300;
+    font-size: 1.3rem;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+
+.nav-link-icon {
+    width: 2.5rem;
+    fill: white;
+    display: block;
+}
+
+.nav-link-text {
+    display: none;
+}
+
+.settings-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: white;
+}
+
+.settings-icon {
+    width: 2.5rem;
+}
+
+.modal-container {
+    display: none;
+    position: fixed;
+    z-index: 1;
+    top: 0;
+    max-width: 100%;
+    width: 100%;
+    height: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    border: 1px solid;
+    background-color: rgba(0,0,0,0.5);
+}
+
+.modal-content-container {
+    display: none;
+    border-radius: 5px;
+    margin: 0.5rem;
+    background-color: white;
+    margin-top: 5rem;
+    padding: 1rem;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.modal-content-container h1 {
+    font-weight: 300;    
+    font-size: 1.5rem;
+    text-align: center;
+}
+
+.modal-content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+.modal-content-header svg {
+    width: 1.5rem;
+}
+
+.modal-content-header button {
+    background: none;
+    padding: 0;
+    cursor: pointer;
+    border: none;
+}
+
+.modal-content-container .form {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-content-container input {
+    margin-bottom: 1rem;
+    border-radius: 5px;
+    border: none;
+    background-color: lightgrey;
+    font-size: 1rem;
+    padding: 0.8rem;
+    width: 5rem;
+    margin-left: 1rem;
+}
+
+.settings-container {
+    display: none;
+}
+
+.add-project-container {
+    display: none;
+}
+
+.content-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.current-project-label {
+    margin-top: 2rem;
+}
+
+.timer {
+    font-size: 6rem;
+    margin-top: 1rem;
+}
+
+.break-btn {
+    background-color: #1a1a1a;
+    color: white;
+    border: 2px solid #1a1a1a;
+    margin-top: 1rem;
+}
+
+.break-btn:hover {
+    background-color: white;
+    color: #1a1a1a;
+}
+
+.resume-btn {
+    background-color: white;
+    color: #1a1a1a;
+}
+
+.resume-btn:hover {
+    background-color: #1a1a1a;
+    color: white;
+}
+
+.project-list-container {
+    max-width: 100%;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 4rem;
+}
+
+.label-container {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    margin-left: 1rem;
+    margin-right: 7rem;
+    font-weight: 300;
+    font-size: 1.1rem;
+}
+
+ul {
+    padding: 0;
+    margin-left: 0.5rem;
+    margin-right: 0.5rem;
+}
+
+li {
+    list-style: none;
+    border-top: 1px solid #808080;
+    font-size: 1.3rem;
+    font-weight: 500;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+li:last-child {
+    border-bottom: 1px solid #808080;
+}
+
+.project-btn {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: none;
+    border: none;
+    padding: 1rem;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+}
+
+.project-btn:hover {
+    background-color: rgb(237, 237, 237);
+    color: #1a1a1a;
+    border-radius: 0;
+}
+
+.current-project-btn {
+    background-color: rgb(237, 237, 237);
+}
+
+li .todays-time {
+    margin-left: auto;
+    margin-right: 1rem;
+}
+
+.stop-btn {
+    background: #1a1a1a;
+    color: white;
+    padding: 0;
+    cursor: pointer;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-top: .5rem;
+    padding-bottom: .5rem;
+    font-size: 1.3rem;
+}
+
+.stop-btn:hover {
+    background-color: white;
+    color: black;
+}
+
+.new-project-btn {
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: lightslategray;
+    font-size: 1rem;
+    margin-top: 0.5rem;
+}
+
+.new-project-btn:hover {
+    background: none;
+    color: #1a1a1a;
+}
+
+.edit-btn {
+    width: 1.5rem;
+    padding: 0;
+    font-size: 0;
+    border: none;
+    margin-right: 1rem;
+    color: lightslategray;
+}
+
+.edit-btn:hover {
+    background: none;
+    color: #1a1a1a;
+}
+
+.delete-btn {
+    display: none;
+    padding: 0;
+    font-size: 0;
+    border: none;
+    margin-left: 1rem;
+    color: red;
+}
+
+.delete-btn:hover {
+    background: none;
+    color: #1a1a1a;
+}
+
+.delete-btn svg {
+    width: 1.5rem;
+}
+
+.prior-up, .prior-down {
+    display: none;
+    padding: 0;
+    font-size: 0;
+    border: none;
+    margin-left: 1rem;
+    color: black;
+}
+
+.prior-up:hover, .prior-down:hover {
+    background: none;
+    color: #1a1a1a;
+}
+
+.prior-up, .prior-down svg {
+    width: 1.5rem;
+}
+
+@media (min-width: 400px) {
+    .title {
+        display: block;
+    }
+
+    .settings-container {
+        max-width: 400px;
+    }
+
+    .modal-content-container {
+        max-width: 400px;
+    }
+}
+
+@media (min-width: 768px) {
+    nav {
+        height: 3rem;
+    }
+
+    .nav-link-icon {
+        display: none;
+    }
+
+    .settings-icon {
+        display: block;
+        padding: 0;
+        width: 2rem;
+    }
+
+    .nav-link-text {
+        display: block;
+    }
+
+    .logout-btn {
+        display: block;
+    }
+}
+
+@media (min-width: 850px) {
+    .project-list-container {
+        max-width: 850px;
+    }
+}

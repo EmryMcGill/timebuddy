@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="/js/index.js"></script>
+    <script src="/js/pocketbase.umd.js"></script>
+    <script src="/js/pocketbase.js"></script>
+    <link rel="shortcut icon" href="#">
+    <script>
+        // first validate the user
+        validateUser();
+
+        // global variables
+        let timerInterval;
+        let currentCount = 0;
+        // breakCount is in seconds
+        let breakCount;
+        // breakLength is in minutes
+        let breakLength = 0;
+        let projects;
+        let currentProject;
+
+        const setCurrentProject = (projectId) => {
+            // change class of old current project
+            if (currentProject) {
+                document.getElementById(`${currentProject}-btn`).classList.remove("current-project-btn");
+            }
+            
+            // set the current project
+            currentProject = projectId;
+
+            // change class of new current project
+            document.getElementById(`${currentProject}-btn`).classList.add("current-project-btn");
+            
+            // update the current project label
+            document.getElementById('current-project-label').innerHTML = projects.find(project => project.id == currentProject).title;
+        }
+
+        // initialize the page data
+        const loadPageData = async () => {
+            // get user data
+            const user = await getUser();
+
+            // init break length
+            breakLength = user.break_length;
+            document.getElementById("break-length").value = breakLength;
+
+            // init projects
+            projects = await getProjects();
+
+            // init time logs
+            timeLogs = await getTimeLogs();
+            // filter time logs to get only the ones for today
+            timeLogs = timeLogs.filter(log => new Date(log.created).toLocaleString().slice(0, 10) == new Date().toLocaleString().slice(0, 10))
+        
+            // check that all projects have a time log for today and if not create one
+            for (i = 0; i < projects.length; ++i) {
+                const log = timeLogs.find(log => log.project_id == projects[i].id);
+                if (!log) {
+                    // no time log for today, create a new record
+                    new_log = await createTimeLog(0, projects[i].id);
+                    // add to time logs
+                    timeLogs.push(new_log);
+                }
+            }
+        }
+
+        // draw the projects to the DOM
+        const drawProjects = () => {
+            // get the list element
+            let list = document.getElementById("project-list");
+            // clear the list
+            list.innerHTML = "";
+
+            // loop through projects and create a list item object for each
+            for (i = 0; i < projects.length; ++i) {
+                // get todays time log
+                let todaysTime = timeLogs.find(log => log.project_id == projects[i].id);
+
+                let hour = Math.floor(todaysTime.time / 60 / 60);
+                let minute = Math.floor(todaysTime.time / 60) % 60;
+                let second = todaysTime.time % 60;
+                
+                // create list item
+                let li = document.createElement('li');
+                li.innerHTML = `<button id="${projects[i].id}-btn" class="project-btn"} onclick="setCurrentProject('${projects[i].id}')">
+                                <p>${projects[i].title}</p>
+                                <p id="${projects[i].id}-time" class="todays-time">${hour > 0 ? th.toString().padStart(2, "0")+':' : ""}${minute.toString().padStart(2, "0")+':'}${second.toString().padStart(2, "0")}</p>
+                                <button id="${projects[i].id}-delete" class="delete-btn" onclick="deleteProject('${projects[i].id}')">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor">
+                                        <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
+                                    </svg>
+                                </button>
+                                <button id="${projects[i].id}-prior" class="prior-up" onclick="priorUp('${projects[i].id}')">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-caret-up" viewBox="0 0 16 16">
+                                        <path d="M3.204 11h9.592L8 5.519zm-.753-.659 4.796-5.48a1 1 0 0 1 1.506 0l4.796 5.48c.566.647.106 1.659-.753 1.659H3.204a1 1 0 0 1-.753-1.659"/>
+                                    </svg>
+                                </button>
+                                <button id="${projects[i].id}-prior" class="prior-down" onclick="priorDown('${projects[i].id}')">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-caret-down" viewBox="0 0 16 16">
+                                        <path d="M3.204 5h9.592L8 10.481zm-.753.659 4.796 5.48a1 1 0 0 0 1.506 0l4.796-5.48c.566-.647.106-1.659-.753-1.659H3.204a1 1 0 0 0-.753 1.659"/>
+                                    </svg>
+                                </button>
+                                </button>
+                                `
+                li.id = projects[i].id
+                list.appendChild(li);
+            }
+            // set color of current project
+            if (currentProject) {
+                document.getElementById(`${currentProject}-btn`).classList.add("current-project-btn");
+            }
+        }
+
+        loadPageData().then(() => drawProjects());
+
+        // function to update settings
+        const handleSubmitSettingsForm = async () => {
+            // update break length
+            await updateUserBreakLength(document.getElementById("break-length").value);
+
+            // close settings modal
+            toggleOffSettingsModal();
+        }
+
+        // function to add new project
+        const handleSubmitNewProject = async (e) => {
+            // prevent page from reloading
+            e.preventDefault();
+
+            // create new project
+            await createProject(document.getElementById('new-project').value);
+            // clear the input
+            document.getElementById('new-project').value = "";
+            // reload the page data
+            loadPageData().then(() => drawProjects());
+            // close new project modal
+            toggleOffNewProjectModal()
+        }
+
+        // function to start the work timer
+        const handleStartBtnClick = () => {
+            clearInterval(timerInterval);
+            // enable work timer
+
+            // check if there is a current project
+            if (!currentProject) {
+                // no current project display alert
+                document.getElementById("current-project-label").innerHTML = "Please Select a Project";
+                return;
+            }
+            // change background color of current project
+            document.getElementById(`${currentProject}-btn`).style.backgroundColor = "#EEFFE0";
+
+            // disable project btns
+            for (let i = 0; i < projects.length; i++) {
+                document.getElementById(`${projects[i].id}-btn`).disabled = true;
+            }
+
+            // hide the start button and show the break/stop buttons
+            document.getElementById("start-btn").style.display = "none";
+            document.getElementById("break-container").style.display = "block";
+
+            // start the work timer
+            startWorkTimer(currentProject);
+        }
+
+        const handleBreakBtnClick = async () => {
+            // fetch data from database again
+            await loadPageData();
+            drawProjects();
+
+            // start the break timer
+
+            // stop the work timer
+            clearInterval(timerInterval);
+
+            // change background color of current project
+            document.getElementById(`${currentProject}-btn`).style.backgroundColor = "#E0FDFF";
+
+            // save the work session to todays log
+            // find the todays log
+            const log = timeLogs.find(log => log.project_id == currentProject);
+            updateTimeLog(currentCount, log);
+
+            // reset count 
+            currentCount = 0;
+
+            // hide the start button and show the break/stop buttons
+            document.getElementById("start-btn").style.display = "block";
+            document.getElementById("break-container").style.display = "none";
+
+            // start the break timer
+            startBreakTimer();
+        }
+
+        // function to start timer
+        const startWorkTimer = async () => {
+            // start the timer interval
+            timerInterval = setInterval(() => {
+                // increment the count
+                currentCount += 1;
+
+                // vars for hour, minute and second
+                let hour = Math.floor(currentCount / 3600);
+                let minute = Math.floor(currentCount / 60) % 60;
+                let second = currentCount % 60;
+
+                // update the timer
+                timer.innerHTML = `${hour > 0 ? hour.toString().padStart(2, "0")+":" : ""}${minute.toString().padStart(2, "0")+":"}${second.toString().padStart(2, "0")}`;
+                // update the tab title
+                document.title = `TimeBuddy ${hour > 0 ? hour.toString().padStart(2, "0")+":" : ""}${minute.toString().padStart(2, "0")+":"}${second.toString().padStart(2, "0")} - Work`;
+            }, 1000)
+        }
+    
+        const startBreakTimer = async () => {
+            // reset break count
+            breakCount = breakLength * 60;
+            
+            // start the timer interval
+            timerInterval = setInterval(() => {
+                // vars for hour, minute and second
+                let hour = Math.floor(breakCount / 3600);
+                let minute = Math.floor(breakCount / 60) % 60;
+                let second = breakCount % 60;
+
+                if (breakCount <= 0) {
+                    // stop the timer
+                    clearInterval(timerInterval);
+                }
+
+                // update the timer
+                timer.innerHTML = `${hour > 0 ? hour.toString().padStart(2, "0")+":" : ""}${minute.toString().padStart(2, "0")+":"}${second.toString().padStart(2, "0")}`;
+                // update the tab title
+                document.title = `TimeBuddy ${hour > 0 ? hour.toString().padStart(2, "0")+":" : ""}${minute.toString().padStart(2, "0")+":"}${second.toString().padStart(2, "0")} - Break`;
+                // decrement the break count
+                breakCount -= 1;
+            }, 1000)
+        }
+
+        const handleStopBtnClick = () => {
+            // stop the timer
+            clearInterval(timerInterval);
+            
+            // save the work session to todays log
+            // find the todays log
+            const log = timeLogs.find(log => log.project_id == currentProject);
+            updateTimeLog(currentCount, log);
+            
+            // reset the count
+            currentCount = 0;
+            
+            // hide the start button and show the break/stop buttons
+            document.getElementById("start-btn").style.display = "block";
+            document.getElementById("break-container").style.display = "none";
+
+            // set the timer text to 0
+            timer.innerHTML = "00:00";
+            document.title = "TimeBuddy";
+
+            // fetch data from database again
+            loadPageData().then(() => drawProjects());
+        }
+
+        // function to display delete btns
+        const toggleDeleteBtns = () => {
+            let deleteBtns = document.getElementsByClassName("delete-btn");
+            let priorUp = document.getElementsByClassName("prior-up");
+            let priorDown = document.getElementsByClassName("prior-down");
+            for (let i = 0; i < deleteBtns.length; i++) {
+                if (deleteBtns[i].style.display == "block") {
+                    deleteBtns[i].style.display = "none";
+                    priorUp[i].style.display = "none";
+                    priorDown[i].style.display = "none";
+                }
+                else {
+                    deleteBtns[i].style.display = "block";
+                    priorUp[i].style.display = "block";
+                    priorDown[i].style.display = "block";
+                }
+            }
+        }
+    
+        // function to delete project
+        const deleteProject = async (projectId) => {
+            // delete project from database
+            await pb.collection('projects').delete(projectId);
+
+            // delete btn from dom
+            document.getElementById(projectId).remove();
+        }
+
+        const priorUp = async (projectId) => {
+            // get all projects
+            let projects = await pb.collection('projects').getFullList({
+                sort: '-priority',
+            });
+
+            // loop through projects
+            for (let i = 0; i < projects.length; i++) {
+                // check if the project is the target
+                if (projects[i].id == projectId) {
+                    // check if its the first project in list
+                    if (i == 0) {
+                        // do nothing
+                        return;
+                    }
+                    // inc priority of target
+                    await pb.collection('projects').update(projects[i].id, {
+                        priority: projects[i].priority + 1
+                    })
+
+                    // dec priority of next project
+                    await pb.collection('projects').update(projects[i-1].id, {
+                        priority: projects[i-1].priority - 1
+                    })
+                }
+            }
+
+            // render projects
+            initSettings();
+        }
+
+        const priorDown = async (projectId) => {
+            // get all projects
+            let projects = await pb.collection('projects').getFullList({
+                sort: '-priority',
+            });
+
+            // loop through projects
+            for (let i = 0; i < projects.length; i++) {
+                // check if the project is the target
+                if (projects[i].id == projectId) {
+                    // check if its the last project in list
+                    if (i == projects.length - 1) {
+                        // do nothing
+                        return;
+                    }
+                    // inc priority of target
+                    await pb.collection('projects').update(projects[i].id, {
+                        priority: projects[i].priority - 1
+                    })
+
+                    // dec priority of previous project
+                    await pb.collection('projects').update(projects[i+1].id, {
+                        priority: projects[i+1].priority + 1
+                    })
+                }
+            }
+
+            // render projects
+            initSettings();
+        }
+
+        const logout = async () => {
+            await pb.authStore.clear();
+            window.location.href = "/html/login.html";
+        }
+
+    </script>
+    <title>TimeBuddy</title>
+</head>
+<body>
+    <script>0</script>
+    <nav>
+        <div class="left-nav">
+            <h1 class="title">TimeBuddy</h1>
+
+            <a href="/html/index.html" class="nav-link" style="background-color:#282828">
+                <svg class="nav-link-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+                    <path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71z"/>
+                    <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0"/>
+                </svg>
+                <p class="nav-link-text">Time</p>
+            </a>
+    
+            <a href="/html/report.html" class="nav-link">
+                <svg class="nav-link-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M3 12H5V21H3V12ZM19 8H21V21H19V8ZM11 2H13V21H11V2Z"></path></svg>
+                <p class="nav-link-text">Report</p>
+            </a>
+        </div>
+
+        <div class="right-nav">
+            <button class="logout-btn" onclick="logout()">Logout</button>
+            <button class="settings-btn" onclick="toggleOnSettingsModal()">
+                <?xml version="1.0" encoding="UTF-8"?>
+                <svg class="settings-icon" stroke-width="1.5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" color="white"><path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M19.6224 10.3954L18.5247 7.7448L20 6L18 4L16.2647 5.48295L13.5578 4.36974L12.9353 2H10.981L10.3491 4.40113L7.70441 5.51596L6 4L4 6L5.45337 7.78885L4.3725 10.4463L2 11V13L4.40111 13.6555L5.51575 16.2997L4 18L6 20L7.79116 18.5403L10.397 19.6123L11 22H13L13.6045 19.6132L16.2551 18.5155C16.6969 18.8313 18 20 18 20L20 18L18.5159 16.2494L19.6139 13.598L21.9999 12.9772L22 11L19.6224 10.3954Z" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+            </button>
+        </div>
+    </nav>
+
+    <div class="content-container">
+        <!-- Modal Container-->
+        <div class="modal-container">
+
+            <!-- Settings Modal -->
+            <div class="modal-content-container settings-container">
+                <div class="modal-content-header">
+                    <h1>Settings</h1>
+                    <button class="close-btn" onclick="toggleOffSettingsModal()">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+                            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="form">
+                    <div>
+                        <label for="break-length">Break Length</label>
+                        <input type="number" id="break-length" name="break-length">
+                    </div>
+                    <button onclick="handleSubmitSettingsForm()">Apply</button>
+                </div>
+            </div>
+
+            <!-- New Project Modal -->
+            <div class="new-project-container modal-content-container">
+                <div class="modal-content-header">
+                    <h1>Add Project</h1>
+                    <button class="close-btn" onclick="toggleOffNewProjectModal()">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+                            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <form class="form" onsubmit="handleSubmitNewProject(event)">
+                    <div>
+                        <label for="new-project">New Project Name</label>
+                        <input 
+                            type="text" 
+                            id="new-project" 
+                            name="new-project" 
+                            placeholder="Project Name"
+                            style="width: auto"
+                            required
+                        >
+                    </div>
+                    <button>Add</button>
+                </form>
+            </div>
+        </div>
+
+        <p id="current-project-label" class="current-project-label"></p>
+        <p class="timer" id="timer">00:00</p>
+
+        <button id="start-btn" class="break-btn" onclick="handleStartBtnClick()">Start Work</button>
+        <div style="display: none;" id="break-container">
+            <button onclick="handleBreakBtnClick()" class="break-btn">Start Break</button>
+            <button onclick="handleStopBtnClick()" class="break-btn">End Work Session</button>
+        </div>
+
+
+        <div class="project-list-container">
+            <div class="label-container">
+                <p class="label-text">Title</p>
+                <p>Todays Total</p>
+            </div>
+
+            <ul id="project-list">
+            </ul>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;">
+                <button class="new-project-btn" onclick="toggleOnNewProjectModal()">
+                    + New Project
+                </button>
+
+                <button class="edit-btn" onclick="toggleDeleteBtns()">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-pencil-square" viewBox="0 0 16 16">
+                        <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
+                        <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5z"/>
+                    </svg>
+                </button>
+            </div>
+            
+        </div>
+    </div>
+
+    
+
+</body>
+</html>
