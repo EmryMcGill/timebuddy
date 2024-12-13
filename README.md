@@ -1,5 +1,5 @@
 # Time Buddy
-
+https://timebuddy.emrymcgill.com/
 a website that I made to keep track of the time you spend working on different things. 
 You can create projects to track time for, take breaks, and view a report of the total time.
 
